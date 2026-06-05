@@ -11,6 +11,81 @@
 
 请只把它用于本机自动化和交互测试，不要用于伪造人工工作状态或绕过监控。
 
+## 快速开始
+
+正常情况下不需要额外配置。clone 后执行这几条命令即可：
+
+```powershell
+git clone https://github.com/Cathyqg/coding-auto.git
+cd coding-auto
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+如果 PowerShell 不允许激活虚拟环境，先运行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+推荐第一次这样运行：
+
+```powershell
+python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile normal
+```
+
+运行前先打开 VS Code 或 IDEA，打开一个 `.py` 文件。命令启动后会倒计时，倒计时期间点击 IDE 的代码编辑区域，让光标停在你希望开始输入的位置。
+
+## 参数怎么选
+
+你一般只需要改下面几个参数。
+
+`--profile normal`
+
+打字速度档位：
+
+- `careful`：慢一点，停顿更多
+- `normal`：默认，比较自然
+- `fast`：快一点，停顿更少
+
+`--browser-breaks`
+
+开启“写一段代码后切到浏览器看一会儿再回来”的模拟。不加这个参数时，只会写代码，不会打开浏览器。
+
+`--browser-clicks 0`
+
+浏览器休息时只移动鼠标和滚动页面，不随机点击网页内容。这个最稳，推荐先用。
+
+`--min-lines 80 --max-lines 140`
+
+随机生成 80 到 140 行 Python 代码。不写也可以，默认是 70 到 130 行。
+
+`--countdown 8`
+
+开始前倒计时 8 秒，给你时间切到 IDE 并点击编辑器。默认就是 8 秒。
+
+常用组合：
+
+```powershell
+# 推荐：写代码 + 浏览器休息 + 不点击网页
+python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile normal
+
+# 写少一点
+python -m human_typing_coder --profile normal --min-lines 40 --max-lines 80
+
+# 写多一点
+python -m human_typing_coder --profile normal --min-lines 150 --max-lines 260
+
+# 只写代码，不打开浏览器
+python -m human_typing_coder --profile normal
+
+# 浏览器休息时允许少量页面表面点击
+python -m human_typing_coder --browser-breaks --profile normal
+```
+
 ## 安装
 
 在 PowerShell 中进入项目目录：
