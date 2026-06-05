@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Notes Scratch Page</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f7f8fb;
+      color: #222;
+      font-family: Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 44px 32px 96px;
+    }
+
+    h1 {
+      font-size: 30px;
+      margin: 0 0 20px;
+    }
+
+    section {
+      border-top: 1px solid #d8dde8;
+      padding: 24px 0;
+    }
+
+    pre {
+      overflow: auto;
+      background: #101624;
+      color: #edf2ff;
+      padding: 18px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Python Notes Scratch Page</h1>
+    <section>
+      <p>This local page is intentionally passive. It has no buttons, forms, links, or network scripts.</p>
+      <p>Use it as a safe target when testing mouse movement, page scrolling, and harmless page-surface clicks.</p>
+    </section>
+    <section>
+      <h2>Small Parser Sketch</h2>
+      <pre><code>def normalize(value: str) -> str:
+    return " ".join(value.strip().split())
+
+def parse_line(line: str) -> tuple[str, str] | None:
+    if "=" not in line:
+        return None
+    key, value = line.split("=", 1)
+    return normalize(key), normalize(value)</code></pre>
+    </section>
+    <section>
+      <h2>Review Notes</h2>
+      <p>Check error handling around empty input, invalid separators, and repeated keys.</p>
+      <p>Keep fixtures small enough that failures are easy to inspect.</p>
+    </section>
+    <section>
+      <h2>More Filler</h2>
+      <p>Scrolling this page should not trigger any action. Clicks only place focus on the document surface.</p>
+      <p>The page is long enough to make wheel movement visible during local automation tests.</p>
+    </section>
+  </main>
+</body>
+</html>
