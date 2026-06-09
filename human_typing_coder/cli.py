@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import argparse
 import random
+import time
 from pathlib import Path
 
-from .code_bank import make_python_sample
+from .code_bank import CONTENT_TYPES, make_content_sample
 from .mouse_actions import (
     BrowserBreakConfig,
     BrowserBreakScheduler,
@@ -24,12 +25,12 @@ from .typing_engine import (
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="human_typing_coder",
-        description="Type Python code into the currently focused editor with random human-like pacing.",
+        description="Type generated coding content into the currently focused editor with random human-like pacing.",
     )
     parser.add_argument(
         "--source-file",
         type=Path,
-        help="Type the exact content of this file instead of generating sample Python code.",
+        help="Type the exact content of this file instead of generating content.",
     )
     parser.add_argument(
         "--profile",
@@ -39,6 +40,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--min-lines", type=int, default=70)
     parser.add_argument("--max-lines", type=int, default=130)
+    parser.add_argument(
+        "--content-types",
+        nargs="+",
+        choices=CONTENT_TYPES,
+        default=["python"],
+        help="Generated content types. Use multiple values for mixed sessions.",
+    )
+    parser.add_argument(
+        "--session-minutes",
+        type=float,
+        help="Keep generating and typing new content until at least this many minutes have elapsed.",
+    )
     parser.add_argument("--countdown", type=int, default=8)
     parser.add_argument("--seed", type=int, help="Use a deterministic random seed.")
     parser.add_argument(
@@ -118,11 +131,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def load_text(args: argparse.Namespace, rng: random.Random) -> str:
+def load_text(args: argparse.Namespace, rng: random.Random) -> tuple[str, str]:
     if args.source_file:
         text = args.source_file.read_text(encoding="utf-8")
-        return text.rstrip() + "\n"
-    return make_python_sample(rng, min_lines=args.min_lines, max_lines=args.max_lines)
+        return "file", text.rstrip() + "\n"
+    return make_content_sample(
+        rng,
+        content_types=args.content_types,
+        min_lines=args.min_lines,
+        max_lines=args.max_lines,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -135,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--countdown cannot be negative")
     if args.max_minutes <= 0:
         parser.error("--max-minutes must be positive")
+    if args.session_minutes is not None and args.session_minutes <= 0:
+        parser.error("--session-minutes must be positive")
+    if args.source_file and args.session_minutes is not None:
+        parser.error("--source-file cannot be combined with --session-minutes")
     if not 0 <= args.break_chance <= 1:
         parser.error("--break-chance must be between 0 and 1")
     if args.break_every_chars[0] <= 0 or args.break_every_chars[1] < args.break_every_chars[0]:
@@ -152,9 +174,10 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(str(error))
 
     rng = random.Random(args.seed)
-    text = load_text(args, rng)
+    content_type, text = load_text(args, rng)
 
     if args.preview:
+        print(f"--- content type: {content_type} ---")
         print(text)
         print(f"\n--- {len(text.splitlines())} lines, {len(text)} characters ---")
         return 0
@@ -183,6 +206,10 @@ def main(argv: list[str] | None = None) -> int:
     state = ControlState()
     listener = None
     try:
+        safety_minutes = args.max_minutes
+        if args.session_minutes is not None and args.session_minutes >= safety_minutes:
+            safety_minutes = args.session_minutes + 5
+
         listener = install_hotkeys(
             state,
             pause_hotkey=args.pause_hotkey,
@@ -192,18 +219,45 @@ def main(argv: list[str] | None = None) -> int:
             rng=rng,
             profile=profile,
             state=state,
-            max_seconds=args.max_minutes * 60,
+            max_seconds=safety_minutes * 60,
             browser_breaks=browser_breaks,
         )
-        print(f"Prepared {len(text.splitlines())} lines / {len(text)} characters.")
-        print("Open an empty Python file in VS Code or IDEA, then focus the editor.")
+        print(f"Prepared {content_type}: {len(text.splitlines())} lines / {len(text)} characters.")
+        print("Open a target editor file in VS Code or IDEA, then focus the editor.")
         print(f"Pause/resume: {args.pause_hotkey} | stop: {args.stop_hotkey}")
+        if args.session_minutes is not None:
+            print(f"Session target: at least {args.session_minutes:g} minutes.")
+            print(f"Content types: {', '.join(args.content_types)}")
+            if safety_minutes != args.max_minutes:
+                print(f"Safety cap extended to {safety_minutes:g} minutes for this session.")
         if browser_breaks is not None:
             print("Browser breaks enabled. Keep the IDE as the window immediately before the browser.")
         print("PyAutoGUI failsafe is enabled: move the mouse to the top-left corner to abort.")
         typer.countdown(args.countdown)
-        typed = typer.type_text(text)
-        print(f"\nDone. Typed {typed} characters.")
+
+        typed = 0
+        started_at = time.monotonic()
+        target_seconds = args.session_minutes * 60 if args.session_minutes is not None else None
+        chunk_index = 1
+        while True:
+            elapsed = time.monotonic() - started_at
+            if target_seconds is not None and elapsed >= target_seconds:
+                break
+            if chunk_index > 1:
+                content_type, text = load_text(args, rng)
+                print(
+                    f"\n[chunk {chunk_index}] {content_type}: "
+                    f"{len(text.splitlines())} lines / {len(text)} characters"
+                )
+                text = "\n\n" + text
+
+            typed += typer.type_text(text)
+            if target_seconds is None:
+                break
+            chunk_index += 1
+
+        elapsed_minutes = (time.monotonic() - started_at) / 60
+        print(f"\nDone. Typed {typed} characters in {elapsed_minutes:.1f} minutes.")
         return 0
     except StopTyping as error:
         print(f"\nStopped: {error}")

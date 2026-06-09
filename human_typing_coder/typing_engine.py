@@ -146,6 +146,7 @@ class HumanTyper:
         self._backend: Any | None = None
         self._started_at: float | None = None
         self._burst_remaining = self._next_burst_size()
+        self._total_typed = 0
 
     def type_text(self, text: str) -> int:
         self._ensure_backend()
@@ -154,10 +155,11 @@ class HumanTyper:
         typed = 0
         for char in text.replace("\r\n", "\n").replace("\r", "\n"):
             self._check_control()
-            self._maybe_take_burst_break(typed)
+            self._maybe_take_burst_break(self._total_typed)
             self._maybe_make_typo(char)
             self._type_char(char)
             typed += 1
+            self._total_typed += 1
             self._burst_remaining -= 1
             self._sleep(self._char_delay(char))
             self._maybe_pause_after(char)

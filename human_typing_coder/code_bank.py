@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import random
 import textwrap
-from typing import Iterable
+from typing import Iterable, Sequence
+
+
+CONTENT_TYPES = ("python", "java", "markdown", "skill")
 
 
 BLOCKS = [
@@ -277,7 +280,8 @@ def make_python_sample(
         raise ValueError("max_lines must be greater than or equal to min_lines")
 
     target_lines = rng.randint(min_lines, max_lines)
-    parts = [_clean_block(rng.choice(HEADERS))]
+    sample_id = f"py_{rng.getrandbits(48):012x}"
+    parts = [f"# generated sample: {sample_id}", _clean_block(rng.choice(HEADERS))]
 
     footer = _clean_block(rng.choice(FOOTERS))
     _ensure_dependencies(parts, footer)
@@ -311,3 +315,272 @@ def _definition_marker(block: str) -> str:
     if "@dataclass" in cleaned:
         return "class TaskResult"
     return cleaned.splitlines()[0]
+
+
+JAVA_BLOCKS = [
+    """
+    static String normalize(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\\\s+", " ");
+    }
+""",
+    """
+    static List<String> filterNonBlank(List<String> values) {
+        List<String> result = new ArrayList<>();
+        for (String value : values) {
+            String normalized = normalize(value);
+            if (!normalized.isEmpty()) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+""",
+    """
+    static Map<String, Integer> countWords(List<String> values) {
+        Map<String, Integer> counts = new TreeMap<>();
+        for (String value : values) {
+            String key = normalize(value).toLowerCase(Locale.ROOT);
+            if (key.isEmpty()) {
+                continue;
+            }
+            counts.put(key, counts.getOrDefault(key, 0) + 1);
+        }
+        return counts;
+    }
+""",
+    """
+    static double movingAverage(List<Integer> values, int window) {
+        if (window <= 0) {
+            throw new IllegalArgumentException("window must be positive");
+        }
+        if (values.isEmpty()) {
+            return 0.0;
+        }
+
+        int start = Math.max(0, values.size() - window);
+        int total = 0;
+        for (int index = start; index < values.size(); index++) {
+            total += values.get(index);
+        }
+        return total / (double) (values.size() - start);
+    }
+""",
+    """
+    static List<String> labelsForScores(List<Integer> scores) {
+        List<String> labels = new ArrayList<>();
+        for (int score : scores) {
+            if (score >= 85) {
+                labels.add("strong");
+            } else if (score >= 60) {
+                labels.add("ok");
+            } else {
+                labels.add("review");
+            }
+        }
+        return labels;
+    }
+""",
+    """
+    static String renderSummary(Map<String, Integer> counts) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Summary\\n");
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            builder.append("- ")
+                .append(entry.getKey())
+                .append(": ")
+                .append(entry.getValue())
+                .append("\\n");
+        }
+        return builder.toString();
+    }
+""",
+]
+
+
+def make_java_sample(
+    rng: random.Random,
+    min_lines: int = 60,
+    max_lines: int = 120,
+) -> str:
+    _validate_line_range(min_lines, max_lines)
+    target_lines = rng.randint(min_lines, max_lines)
+    sample_id = f"{rng.getrandbits(32):08x}"
+    class_name = f"WorkSample{sample_id[0].upper()}{sample_id[1:]}"
+    parts = [
+        "import java.util.ArrayList;",
+        "import java.util.Arrays;",
+        "import java.util.List;",
+        "import java.util.Locale;",
+        "import java.util.Map;",
+        "import java.util.TreeMap;",
+        "",
+        f"public class {class_name} {{",
+        f"    private static final String SAMPLE_ID = \"java_{sample_id}\";",
+        "",
+        "    public static void main(String[] args) {",
+        "        List<String> words = Arrays.asList(\"alpha\", \"beta\", \"alpha\", \"gamma\");",
+        "        List<Integer> scores = Arrays.asList(88, 72, 54, 91);",
+        "        Map<String, Integer> counts = countWords(words);",
+        "        System.out.println(SAMPLE_ID);",
+        "        System.out.println(renderSummary(counts));",
+        "        System.out.println(labelsForScores(scores));",
+        "        System.out.println(movingAverage(scores, 3));",
+        "    }",
+    ]
+
+    required_blocks = [JAVA_BLOCKS[index] for index in (0, 2, 3, 4, 5)]
+    optional_blocks = [JAVA_BLOCKS[index] for index in (1,)]
+
+    for block in required_blocks:
+        parts.extend(["", _clean_block(block)])
+
+    rng.shuffle(optional_blocks)
+    for block in optional_blocks:
+        if _line_count(parts + ["}"]) >= target_lines:
+            break
+        parts.extend(["", _clean_block(block)])
+
+    parts.append("}")
+    return "\n".join(parts).rstrip() + "\n"
+
+
+MARKDOWN_TOPICS = [
+    "parser edge cases",
+    "test data cleanup",
+    "local automation checks",
+    "release checklist",
+    "error handling audit",
+    "configuration notes",
+]
+
+
+def make_markdown_sample(
+    rng: random.Random,
+    min_lines: int = 50,
+    max_lines: int = 110,
+) -> str:
+    _validate_line_range(min_lines, max_lines)
+    sample_id = f"md_{rng.getrandbits(48):012x}"
+    target_lines = rng.randint(min_lines, max_lines)
+    topic = rng.choice(MARKDOWN_TOPICS)
+    sections = [
+        f"# Notes: {topic.title()}",
+        "",
+        f"Sample id: `{sample_id}`",
+        "",
+        "## Context",
+        "",
+        "The goal is to keep the work small enough to review while still covering the main path and the failure path.",
+        "",
+        "## Checklist",
+        "",
+    ]
+
+    tasks = [
+        "Confirm the input shape before adding new branches.",
+        "Keep the fixture names close to the behavior being tested.",
+        "Record the default values near the option parser.",
+        "Prefer clear errors over silent fallbacks.",
+        "Run the smallest useful verification command first.",
+        "Write down any assumption that affects user-facing behavior.",
+        "Check that generated files can be deleted and recreated.",
+        "Review line endings on Windows before publishing.",
+    ]
+    rng.shuffle(tasks)
+    for task in tasks:
+        sections.append(f"- [ ] {task}")
+
+    paragraphs = [
+        "A narrow test is useful when it explains exactly which branch changed and why the branch matters.",
+        "Generated content should include enough variation to catch accidental assumptions in downstream tooling.",
+        "The browser portion of the session should stay on passive pages unless an operator explicitly chooses otherwise.",
+        "Long runs need visible controls so the operator can pause, resume, or stop without closing the terminal.",
+    ]
+    while len(sections) < target_lines:
+        heading = rng.choice(["Implementation", "Validation", "Follow-up", "Risk Notes"])
+        sections.extend(["", f"## {heading}", "", rng.choice(paragraphs)])
+        sections.extend(["", "```text", f"trace={rng.getrandbits(32):08x}", "status=reviewed", "```"])
+
+    return "\n".join(sections[:target_lines]).rstrip() + "\n"
+
+
+def make_skill_sample(
+    rng: random.Random,
+    min_lines: int = 50,
+    max_lines: int = 110,
+) -> str:
+    _validate_line_range(min_lines, max_lines)
+    sample_id = f"skill_{rng.getrandbits(48):012x}"
+    target_lines = rng.randint(min_lines, max_lines)
+    skill_name = rng.choice(["local-review", "fixture-builder", "release-notes", "automation-check"])
+    lines = [
+        "---",
+        f"name: {skill_name}-{sample_id[-4:]}",
+        "description: Draft skill notes for a local coding workflow.",
+        "---",
+        "",
+        f"# {skill_name.title()} Skill",
+        "",
+        f"Sample id: `{sample_id}`",
+        "",
+        "## When To Use",
+        "",
+        "- Use this when the task has repeated local checks.",
+        "- Use this when the expected output needs a consistent shape.",
+        "- Skip this when a direct one-off command is clearer.",
+        "",
+        "## Workflow",
+        "",
+    ]
+
+    steps = [
+        "Inspect the current files and identify the smallest relevant surface.",
+        "Run the cheap validation command before editing behavior.",
+        "Make the scoped change and avoid unrelated cleanup.",
+        "Repeat validation after the edit.",
+        "Summarize the result with exact commands and file paths.",
+    ]
+    for index, step in enumerate(steps, start=1):
+        lines.append(f"{index}. {step}")
+
+    notes = [
+        "Prefer repository conventions over a new abstraction.",
+        "Keep generated examples deterministic only when a seed is provided.",
+        "Avoid page actions that submit forms or trigger account changes.",
+        "Store reusable commands in the README when they are operator-facing.",
+    ]
+    while len(lines) < target_lines:
+        lines.extend(["", "## Notes", ""])
+        for note in rng.sample(notes, k=min(3, len(notes))):
+            lines.append(f"- {note}")
+        lines.extend(["", "```powershell", f"# check {rng.getrandbits(24):06x}", "python -m compileall human_typing_coder", "```"])
+
+    return "\n".join(lines[:target_lines]).rstrip() + "\n"
+
+
+def make_content_sample(
+    rng: random.Random,
+    content_types: Sequence[str],
+    min_lines: int = 60,
+    max_lines: int = 120,
+) -> tuple[str, str]:
+    if not content_types:
+        raise ValueError("content_types cannot be empty")
+
+    content_type = rng.choice(list(content_types))
+    if content_type == "python":
+        return content_type, make_python_sample(rng, min_lines=min_lines, max_lines=max_lines)
+    if content_type == "java":
+        return content_type, make_java_sample(rng, min_lines=min_lines, max_lines=max_lines)
+    if content_type == "markdown":
+        return content_type, make_markdown_sample(rng, min_lines=min_lines, max_lines=max_lines)
+    if content_type == "skill":
+        return content_type, make_skill_sample(rng, min_lines=min_lines, max_lines=max_lines)
+    raise ValueError(f"unsupported content type: {content_type}")
+
+
+def _validate_line_range(min_lines: int, max_lines: int) -> None:
+    if min_lines < 1:
+        raise ValueError("min_lines must be at least 1")
+    if max_lines < min_lines:
+        raise ValueError("max_lines must be greater than or equal to min_lines")

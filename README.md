@@ -1,8 +1,8 @@
 # IDE Human Typing Coder
 
-这是一个本地测试用的 IDE 打字模拟器。它不会自动寻找窗口，也不会在后台隐藏运行；你需要自己打开 VS Code 或 IDEA 的编辑器，倒计时期间手动聚焦目标 `.py` 文件，然后程序才会用键盘事件输入代码。
+这是一个本地测试用的 IDE 打字模拟器。它不会自动寻找窗口，也不会在后台隐藏运行；你需要自己打开 VS Code 或 IDEA 的编辑器，倒计时期间手动聚焦目标文件，然后程序才会用键盘事件输入内容。
 
-它会随机生成一段 Python 示例代码，并使用不固定节奏输入：
+它会随机生成 Python、Java、Markdown、Skill 文档等内容，并使用不固定节奏输入：
 
 - 每个字符、单词、换行后的等待时间都有随机抖动。
 - 会分批输入，中间随机停顿，模拟短暂思考。
@@ -31,13 +31,19 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\.venv\Scripts\Activate.ps1
 ```
 
-推荐第一次这样运行：
+推荐第一次这样运行，默认只生成 Python 内容，并带浏览器休息但不点击网页：
 
 ```powershell
 python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile normal
 ```
 
-运行前先打开 VS Code 或 IDEA，打开一个 `.py` 文件。命令启动后会倒计时，倒计时期间点击 IDE 的代码编辑区域，让光标停在你希望开始输入的位置。
+如果要运行至少 1 小时，并混合生成 Python、Java、Markdown、Skill 内容：
+
+```powershell
+python -m human_typing_coder --session-minutes 60 --browser-breaks --browser-clicks 0 --content-types python java markdown skill --profile normal
+```
+
+运行前先打开 VS Code 或 IDEA，打开一个目标文件或草稿文件。命令启动后会倒计时，倒计时期间点击 IDE 的代码编辑区域，让光标停在你希望开始输入的位置。
 
 ## 参数怎么选
 
@@ -59,9 +65,24 @@ python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile norma
 
 浏览器休息时只移动鼠标和滚动页面，不随机点击网页内容。这个最稳，推荐先用。
 
+`--content-types python java markdown skill`
+
+控制生成内容类型。可以只写一个，也可以写多个：
+
+- `python`：生成 Python 示例代码
+- `java`：生成 Java 示例代码
+- `markdown`：生成 Markdown 笔记
+- `skill`：生成类似 `SKILL.md` 的技能说明文档
+
+默认只生成 `python`。混合生成时建议打开普通草稿文件，或者确认你能接受不同语言内容写在同一个编辑器里。
+
+`--session-minutes 60`
+
+持续生成和输入内容，直到总运行时间至少达到 60 分钟。代码输入和浏览器休息都算在这个总时间里。你可以改成其他时间，例如 `--session-minutes 30` 或 `--session-minutes 90`。
+
 `--min-lines 80 --max-lines 140`
 
-随机生成 80 到 140 行 Python 代码。不写也可以，默认是 70 到 130 行。
+每一段随机生成 80 到 140 行内容。不写也可以，默认是 70 到 130 行。
 
 `--countdown 8`
 
@@ -72,6 +93,12 @@ python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile norma
 ```powershell
 # 推荐：写代码 + 浏览器休息 + 不点击网页
 python -m human_typing_coder --browser-breaks --browser-clicks 0 --profile normal
+
+# 至少跑 1 小时，混合生成 Python、Java、Markdown、Skill
+python -m human_typing_coder --session-minutes 60 --browser-breaks --browser-clicks 0 --content-types python java markdown skill --profile normal
+
+# 跑 30 分钟，只生成 Python 和 Markdown
+python -m human_typing_coder --session-minutes 30 --browser-breaks --browser-clicks 0 --content-types python markdown
 
 # 写少一点
 python -m human_typing_coder --profile normal --min-lines 40 --max-lines 80
@@ -85,6 +112,8 @@ python -m human_typing_coder --profile normal
 # 浏览器休息时允许少量页面表面点击
 python -m human_typing_coder --browser-breaks --profile normal
 ```
+
+默认不传 `--seed` 时，每次启动都会生成不同内容。只有你显式传 `--seed 42` 这类固定随机种子时，才会更容易复现同一批内容和节奏。
 
 ## 安装
 
@@ -110,10 +139,16 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 python -m human_typing_coder --preview
 ```
 
+预览混合内容：
+
+```powershell
+python -m human_typing_coder --preview --content-types python java markdown skill
+```
+
 ## 开始输入
 
 1. 打开 VS Code 或 IDEA。
-2. 新建或打开一个空的 Python 文件。
+2. 新建或打开一个目标文件。只生成 Python 时可以用 `.py`；混合内容时建议用普通草稿文件。
 3. 在终端运行：
 
 ```powershell
@@ -143,11 +178,17 @@ python -m human_typing_coder --source-file D:\tmp\demo.py --profile normal
 # 固定随机种子，方便复现同一段代码和节奏
 python -m human_typing_coder --seed 42
 
+# 混合生成 Python、Java、Markdown、Skill
+python -m human_typing_coder --content-types python java markdown skill
+
+# 至少运行 1 小时
+python -m human_typing_coder --session-minutes 60 --browser-breaks --browser-clicks 0 --content-types python java markdown skill
+
 # 设置安全运行上限，避免意外长时间运行
 python -m human_typing_coder --max-minutes 5
 ```
 
-注意：`--max-minutes` 只是安全上限，不是固定写代码时间。实际停止点由生成内容长度、随机停顿和你的停止热键共同决定。
+注意：`--max-minutes` 只是安全上限，不是固定写代码时间。实际停止点由生成内容长度、随机停顿和你的停止热键共同决定。使用 `--session-minutes` 时，如果目标时长超过默认安全上限，程序会自动把安全上限延后 5 分钟。
 
 ## 模拟浏览器和鼠标休息
 
